@@ -13,10 +13,11 @@ class ETL:
        return json.loads(ddd)
 
 
-    def transform_data_into_objects(self, dataset) -> list[TweetSerializer]:
+    def serialize_data(self, dataset) -> list[TweetSerializer]:
         tweet_serializer_list: list[TweetSerializer] = []
         for data in dataset:
             hashtag_list: list[HashTag] = []
+            retweeted_hashtag_list: list[HashTag] = []
             if data["user"]:
                 user = User(
                     id=data["user"]["id_str"],
@@ -56,17 +57,26 @@ class ETL:
                     created_at=data["retweeted_status"]["user"]["created_at"]
                 )
 
+                retweet_hashtags = data["retweeted_status"]["entities"]["hashtags"]
+                retweeted_hashtag_list: list[HashTag] = []
+                for retweet_hashtag in retweet_hashtags:
+                    hashtag = HashTag(text=retweet_hashtag["text"], tweet_id=data["retweeted_status"]["id_str"])
+                    retweeted_hashtag_list.append(hashtag)
+
+
                 retweeted_status = Tweet(
                     id=data["retweeted_status"]["id_str"],
                     source=data["retweeted_status"]["source"],
                     lang=data["retweeted_status"]["lang"],
-                    text=data["retweeted_status"]["lang"],
+                    text=data["retweeted_status"]["text"],
                     user_id=retweeted_user.id,
                     retweeted_status_id=None,
                     in_reply_to_status_id=data["retweeted_status"]["in_reply_to_status_id"],
                     in_reply_to_user_id=data["retweeted_status"]["in_reply_to_user_id"],
                     in_reply_to_screen_name=data["retweeted_status"]["in_reply_to_screen_name"],
-                    created_at=data["retweeted_status"]["created_at"]
+                    created_at=data["retweeted_status"]["created_at"],
+                    retweet_count=data["retweeted_status"]["retweet_count"],
+                    favorite_count=data["retweeted_status"]["favorite_count"]
                 )
 
             tweet_serializer = TweetSerializer(
@@ -81,15 +91,20 @@ class ETL:
                 in_reply_to_screen_name=data["in_reply_to_screen_name"],
                 retweeted_status=retweeted_status,
                 lang=data["lang"],
-                retweeted_user=retweeted_user
+                retweeted_user=retweeted_user,
+                retweet_count=data["retweet_count"],
+                favorite_count=data["favorite_count"],
+                retweet_hashtags=retweeted_hashtag_list if "retweeted_status" in data else None
             )
             tweet_serializer_list.append(tweet_serializer)
         return tweet_serializer_list
 
 
-    def clean_data(self, dataset):
-        if dataset["id"] == None or dataset["id_str"] == None:
-            return False
+    def filter_data(self, dataset):
+        if dataset["id"] != None:
+            return True
+        elif dataset["id_str"] != None:
+            return True
         elif dataset["entities"] != None:
             return True
         elif (dataset["lang"] == "en"
@@ -102,11 +117,11 @@ class ETL:
             or dataset["lang"] == "ja"
         ):
             return True
-        return True
+        return False
 
     def transform_data(self, raw_data: list[str]):
-        dataset = filter(self.clean_data, raw_data)
-        return self.transform_data_into_objects(list(dataset))
+        dataset = filter(self.filter_data, raw_data)
+        return self.serialize_data(list(dataset))
 
     def load_data_to_csv(self, dataframe, output_path):
         dataframe.to_csv(output_path, index = False)
@@ -140,7 +155,9 @@ class ETL:
                         in_reply_to_status_id=retweet_status.in_reply_to_status_id,
                         in_reply_to_screen_name=retweet_status.in_reply_to_screen_name,
                         lang=retweet_status.lang,
-                        retweeted_status_id=None
+                        retweeted_status_id=None,
+                        favorite_count=retweet_status.favorite_count,
+                        retweet_count=retweet_status.retweet_count
                     )
 
                     db.session.add(t_data)
@@ -153,7 +170,9 @@ class ETL:
                 lang=tweet.lang,
                 in_reply_to_user_id=tweet.in_reply_to_user_id,
                 in_reply_to_status_id=tweet.in_reply_to_status_id,
-                in_reply_to_screen_name=tweet.in_reply_to_screen_name
+                in_reply_to_screen_name=tweet.in_reply_to_screen_name,
+                favorite_count=tweet.favorite_count,
+                retweet_count=tweet.retweet_count
             )
             print(f"Tweet Data: {tweet_data}")
             existing_user = User.query.filter_by(id=user.id).first()

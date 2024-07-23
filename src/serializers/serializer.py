@@ -15,6 +15,9 @@ class TweetSerializer:
         retweeted_status: Tweet | None,
         lang: str,
         retweeted_user: User | None,
+        retweet_count: int,
+        favorite_count: int,
+        retweet_hashtags: list[HashTag] | None
     ) -> None:
         self.id=id
         self.text=text
@@ -28,6 +31,9 @@ class TweetSerializer:
         self.in_reply_to_screen_name = in_reply_to_screen_name
         self.lang = lang
         self.retweeted_user = retweeted_user
+        self.retweet_count=retweet_count
+        self.favorite_count= favorite_count
+        self.retweet_hashtags=retweet_hashtags
 
 
     def __str__(self) -> str:

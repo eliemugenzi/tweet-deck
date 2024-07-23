@@ -162,3 +162,4 @@ cython_debug/
 #.idea/
 src/query2_ref.txt
 src/output_data.csv
+src/popular_hashtags.txt

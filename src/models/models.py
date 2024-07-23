@@ -19,7 +19,9 @@ class Tweet(db.Model):
         in_reply_to_status_id: str | None,
         in_reply_to_user_id: str | None,
         in_reply_to_screen_name: str | None,
-        lang: str
+        lang: str,
+        retweet_count: int,
+        favorite_count: int,
     ) -> None:
         self.id=id
         self.text=text
@@ -31,6 +33,8 @@ class Tweet(db.Model):
         self.in_reply_to_user_id = in_reply_to_user_id
         self.in_reply_to_screen_name = in_reply_to_screen_name
         self.lang = lang
+        self.retweet_count=retweet_count
+        self.favorite_count=favorite_count
 
     id=db.Column(db.String, primary_key=True, nullable=False, unique=True)
     text=db.Column(db.Text, nullable=False)
@@ -44,6 +48,8 @@ class Tweet(db.Model):
     in_reply_to_status_id = db.Column(db.String, nullable=True)
     in_reply_to_user_id=db.Column(db.String, nullable=True)
     in_reply_to_screen_name=db.Column(db.String, nullable=True)
+    retweet_count=db.Column(db.Integer, default=0)
+    favorite_count=db.Column(db.Integer,default=0)
 
     def __str__(self) -> str:
         return f"Text: {self.text}, UserId: {self.user_id}"
@@ -90,6 +96,20 @@ class HashTag(db.Model):
     text=db.Column(db.String, nullable=False)
     tweet_id=db.Column(db.String, db.ForeignKey("tweets.id"), nullable=False)
     tweet=db.relationship("Tweet", backref="HashTag", uselist=True)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow)
 
     def __str__(self) -> str:
         return f"ID: {self.id}, Text: {self.text}, TweetId: {self.tweet_id}"
+
+
+class PopularHashTag(db.Model):
+    def __init__(self, name: str) -> None:
+        self.name = name
+    __tablename__="popular_hashtags"
+
+    id=db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, nullable=False)
+    name=db.Column(db.String, nullable=False)
+    created_at=db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __str__(self) -> str:
+        return f"Name: {self.name}"
